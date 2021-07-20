@@ -27,7 +27,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput(
-        "source", "Select data source", unique(all_results$source), selected = "ARES"
+        "source", "Select data source", unique(all_results$source), selected = "merged"
       ),
 
       checkboxGroupInput(
@@ -125,7 +125,7 @@ server <- function(input, output) {
     }
     vis.links <- edges
 
-    # Add options to network e.g. color, abeling etc.
+    # Add options to network e.g. color, labeling etc.
     if (nrow(vis.links) > 0 | nrow(vis.nodes) > 0) {
       vis.nodes$shape  <- "ellipse"
       vis.nodes$label  <- vis.nodes$ab # Node label
