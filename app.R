@@ -25,7 +25,7 @@ ui <- fluidPage(
 
   # Sidebar with inputs for app
   sidebarLayout(
-    sidebarPanel(
+    sidebarPanel(width = 3,
       selectInput(
         "source", "Select data source", unique(all_results$source), selected = "merged"
       ),
@@ -45,8 +45,8 @@ ui <- fluidPage(
     ),
 
     # Show a plot of the generated network
-    mainPanel(
-      visNetworkOutput("network", height = "600px")
+    mainPanel(width = 9,
+      visNetworkOutput("network", height = "700px")
     )
   )
 )
