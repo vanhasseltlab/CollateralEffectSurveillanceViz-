@@ -26,10 +26,6 @@ ui <- fluidPage(
   # Sidebar with inputs for app
   sidebarLayout(
     sidebarPanel(width = 3,
-      selectInput(
-        "source", "Select data source", unique(all_results$source), selected = "merged"
-      ),
-
       checkboxGroupInput(
         "CE_type", "Select collateral effect", unique(all_results$effect_type),
         selected = "collateral sensitivity"
@@ -38,10 +34,11 @@ ui <- fluidPage(
       uiOutput("species"),
       uiOutput("antibiotics"),
 
-      sliderInput(inputId = "effect_size", label = "Minimal absolute log2(fold change)", min = 0, max = 10, step = 0.1, value = 0),
-      sliderInput(inputId = "balance", label = "Minimal balance between groups", min = 0, max = 1, step = 0.01, value = 0),
+      sliderInput(inputId = "effect_size", label = "Minimal absolute log2(fold change)", min = 0, max = 10, step = 0.1, value = 0.5),
+      sliderInput(inputId = "balance", label = "Minimal balance between groups", min = 0, max = 1, step = 0.01, value = 0.05),
 
-      actionButton("execute_button", "Create network")
+      actionButton("execute_button", "Create network"),
+      htmlOutput("explanation")
     ),
 
     # Show a plot of the generated network
@@ -52,20 +49,19 @@ ui <- fluidPage(
 )
 
 
-
 ##### Define server functionality #####
 server <- function(input, output) {
   filterData <- reactiveVal(all_results)
 
   # Filter data based on input data source
   filtered_df <- reactive({
-    filterData() %>% filter(source == input$source)
+    filterData()
   })
 
   # Add button for species selection
   output$species <- renderUI({
     selectInput(
-      "species", "Which species do you want to include? (Leave empty to include all)", unique(filtered_df()$species),
+      "species", "Which species do you want to include? (Leave empty to include all)", sort(unique(filtered_df()$species)),
       multiple = TRUE
     )
   })
@@ -73,7 +69,7 @@ server <- function(input, output) {
   output$antibiotics <- renderUI({
     selectInput(
       "antibiotics", "Which antibiotics do you want to include? (Leave empty to include all)",
-      unique(c(filtered_df()$A,filtered_df()$B)),
+      sort(unique(c(filtered_df()$A,filtered_df()$B))),
       multiple = TRUE
     )
 
@@ -132,9 +128,9 @@ server <- function(input, output) {
       vis.nodes$title  <- vis.nodes$antibiotic
 
       vis.links$arrows <- "to"
-      if (length(unique(input$species)) != 1) {
+      #if (length(unique(input$species)) != 1) {
         vis.links$title <- vis.links$sources #add labels species
-      }
+      #}
       vis.links$color <- vis.links$effect_type
       vis.links$width <- abs(vis.links$weight)
       vis.links$arrowStrikethrough <- FALSE
@@ -142,10 +138,12 @@ server <- function(input, output) {
 
     # Create custom legend data frame
     color_nodes <- color_ab_groups %>% filter(ab_group %in% vis.nodes$group) %>%
-      mutate(label = ab_group)
+      mutate(label = ab_group, value = 13, font.size = 13*3)
     color_edges <- data.frame(color = c("#f46e32", "#001158"),
                               label = c("collateral resistance", "collateral sensitivity"),
-                              arrows =c("to", "to")) %>% filter(color %in% edges$effect_type)
+                              arrows = c("to", "to"),
+                              width = 7, font.size = 13*3, font.align = "top", align = "bottom") %>%
+      filter(color %in% edges$effect_type)
 
     list(nodes = vis.nodes, edges = vis.links, color_nodes = color_nodes,
          color_edges = color_edges)
@@ -156,11 +154,25 @@ server <- function(input, output) {
     visNetwork(network_data()$nodes, network_data()$edges) %>%
       visOptions(highlightNearest = list(enabled = T, degree = 1),
                  nodesIdSelection = list(enabled = TRUE, main = "Highlight antibiotic")) %>%
-      visLegend(position = "right", width = 0.25, useGroups = FALSE, addNodes = network_data()$color_nodes,
+      visLegend(position = "right", useGroups = FALSE, addNodes = network_data()$color_nodes,
                 addEdges = network_data()$color_edges) %>%
-      visIgraphLayout(layout = "layout_nicely", smooth = FALSE, randomSeed = 123)
+      visIgraphLayout(layout = "layout_with_lgl", smooth = FALSE, randomSeed = 123, type = "full")
 
   })
+
+  output$explanation <- renderUI({
+    HTML("<br><b>Explanation</b><br>
+         <ul>
+            <li>Choose which antibiotics and species you want to include and press
+         'Create network' to create a collateral effect network.</li>
+            <li>Hover over the antibiotic to show the full antibiotic name and
+                hover over the arrow to show the name(s) of the species.</li>
+            <li>Use scrolling to zoom in and out.</li>
+            <li>You can drag the nodes around to improve visibility.</li>
+         <ul>")
+  })
+
+
 }
 
 # Running the shiny app
